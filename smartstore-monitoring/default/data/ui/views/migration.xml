@@ -1,0 +1,60 @@
+<dashboard>
+  <!--https://answers.splunk.com/answers/701684/smartstorecan-i-get-more-information-on-migrating.html#answer-701685-->
+  <label>Migration 📦</label>
+  <row>
+    <panel>
+      <title>Migration Progress</title>
+      <table>
+        <search>
+          <query>| rest /services/admin/cacheman/_metrics splunk_server=*
+| rename migration.total_jobs AS migration_jobs_total,migration.current_job AS migration_jobs_complete
+| eval migration_jobs_remaining=migration_jobs_total-migration_jobs_complete
+| fillnull migration.end_epoch value="-"
+| stats count by splunk_server migration.start_epoch migration.end_epoch migration.status migration_jobs_total migration_jobs_complete migration_jobs_remaining
+| eval percent_complete = round((migration_jobs_complete/migration_jobs_total)*100,1)
+| eval current_time_secs=now()
+| eval time_elapsed_secs=if('migration.status'="finished",('migration.end_epoch'- 'migration.start_epoch'),(current_time_secs - 'migration.start_epoch'))
+| eval secs_per_job=time_elapsed_secs/migration_jobs_complete
+| eval time_remaining_secs=migration_jobs_remaining*secs_per_job
+| eval seconds_per_job=round((secs_per_job),2)
+| convert timeformat="%+" ctime(migration.start_epoch) AS migration_start_time
+| convert timeformat="%+" ctime(migration.end_epoch) AS migration_end_time
+| eval migration_end_time=if('migration.status'="finished",migration_end_time,"-")
+| convert timeformat="%+" ctime(current_time_secs) AS current_time
+| eval current_time=if('migration.status'="finished","-",current_time)
+| eval time_elapsed_hours=round(time_elapsed_secs/3600,2)
+| eval time_remaining_hours=round((time_remaining_secs/3600),2)
+| table splunk_server migration.status migration_start_time migration_end_time current_time migration_jobs_total migration_jobs_complete migration_jobs_remaining percent_complete time_elapsed_hours time_remaining_hours seconds_per_job</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Started Migrations</title>
+      <event>
+        <search>
+          <query>index=_internal source="splunkd.log" DatabaseDirectoryManager "Remote storage migration needed" | timechart count by idx</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="list.drilldown">none</option>
+      </event>
+    </panel>
+    <panel>
+      <title>Completed Migrations</title>
+      <event>
+        <search>
+          <query>index=_internal source="splunkd.log" component=CacheManager "Remote storage migration" completed</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="list.drilldown">none</option>
+      </event>
+    </panel>
+  </row>
+</dashboard>

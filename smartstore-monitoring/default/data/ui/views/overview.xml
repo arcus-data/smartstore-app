@@ -1,0 +1,52 @@
+<dashboard script="fa.js" stylesheet="fa.css">
+    <label>Overview</label>
+    <row id="arcus">
+        <panel>
+            <html>
+                <span style="font-size:30px; font-weight: 100; line-height:normal;">About SmartStore Deployment Monitoring</span>
+                <p style="padding-top: 12px;">This app provides insight into the operations of <a href="https://docs.splunk.com/Splexicon:SmartStore" target="_blank">SmartStore</a> on your Splunk deployment beyond the dashboards provided in the Monitoritng Console.</p>
+                <p>SmartStore allows you to decouple compute from storage resources and significantly reduce the cost of retaining logs for long periods of time.</p>
+                <i style="margin-right: 8px;" class="fas fa-book"/>Learn More:
+                <ul>
+                    <li><a href="https://docs.splunk.com/Documentation/Splunk/latest/Indexer/AboutSmartStore" target="_blank">Splunk Docs - About SmartStore</a></li>
+                    <li><a href="https://docs.splunk.com/Documentation/Splunk/latest/Indexer/SmartStorearchitecture" target="_blank">Splunk Docs - SmartStore Architecture</a></li>
+                    <li><a href="https://conf.splunk.com/files/2019/slides/FN2168.pdf" target="_blank">.conf 2019 - SmartStore Deep Dive</a></li>
+                </ul>
+                <p><i style="margin-right: 8px;" class="fas fa-cloud"/>Cloud Hosting Object Storage Services:</p>
+                <ul>
+                    <li><a href="https://aws.amazon.com/s3/" target="_blank">Amazon Simple Storage Service (S3)</a></li>
+                    <li><a href="https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blobs-introduction" target="_blank">Azure Blob Storage</a></li>
+                    <li><a href="https://cloud.google.com/storage" target="_blank">Google Cloud Storage</a></li>
+                </ul>
+            </html>
+        </panel>
+        <panel>
+            <html>
+                <i class="fas fa-chart-line" style="font-size: 36px; margin-right: 16px;"/>
+                <span style="font-size:30px; font-weight: 100;">Dashboards</span>
+                <p style="padding-top: 12px;">The following dashboards can be used to monitor the deployment:</p>
+                <ol>
+                    <li>Cache Overview:</li>
+                    <ul>
+                        <li><a href="cache_inspector">Cache Inspector</a></li>
+                        <li><a href="history">Cache Size History</a></li>
+                    </ul>
+                    <li>Cache Operations:</li>
+                    <ul>
+                        <li><a href="uploads">Uploads to Object Store</a></li>
+                        <li><a href="downloads">Downloads from Object Store</a></li>
+                    </ul>
+                    <li>Search Performance and Behaviors:</li>
+                    <ul>
+                        <li><a href="performance">Performance</a></li>
+                        <li><a href="investigate_cache_miss">Cache Miss Investigator</a></li>
+                    </ul>
+                    <li>Misc / Other:</li>
+                    <ul>
+                        <li><a href="migration">Migration</a></li>
+                    </ul>
+                </ol>
+            </html>
+        </panel>
+    </row>
+</dashboard>

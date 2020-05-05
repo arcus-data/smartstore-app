@@ -1,0 +1,152 @@
+<dashboard>
+  <label>Cache Inspector 📊</label>
+  <row>
+    <panel>
+      <chart>
+        <title>Size on Disk and in Cache by Index (MB)</title>
+        <search>
+          <query>| rest /services/admin/cacheman
+| rex field=title "bid\|(?&lt;index&gt;[^~]+)"
+| stats sum("cm:bucket.estimated_size") as size by index, cm:bucket.status
+| eval size=size/1024/1024
+| eval size=round(size, 1)
+| rename size as "Size in MB"
+| xyseries index, cm:bucket.status, "Size in MB"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <refresh>30s</refresh>
+          <refreshType>delay</refreshType>
+        </search>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.chart">bar</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.stackMode">stacked100</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisEnd</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>Size on Disk and in Cache by Indexer (MB)</title>
+        <search>
+          <query>| rest /services/admin/cacheman
+| rex field=title "bid\|(?&lt;index&gt;[^~]+)"
+| stats sum("cm:bucket.estimated_size") as size by splunk_server, cm:bucket.status
+| eval size=size/1024/1024
+| eval size=round(size, 1)
+| rename size as "Size in MB"
+| xyseries splunk_server, cm:bucket.status, "Size in MB"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <refresh>30s</refresh>
+          <refreshType>delay</refreshType>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.chart.stackMode">stacked100</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisEnd</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Cache Size (dbinspect)</title>
+        <search>
+          <query>| dbinspect index=* cached=f
+| search index!=crowdstrike state!=hot
+| stats sum(sizeOnDiskMB) as CacheGB by splunk_server, index
+| eval CacheGB=CacheGB/1024
+| xyseries splunk_server, index, CacheGB</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Cache Size (cache/non-cache)</title>
+        <search>
+          <query>| dbinspect index=* cached=f
+| join type=outer bucketId splunk_server 
+    [| rest /services/admin/cacheman 
+    | rex field=title "(?&lt;bucketType&gt;[^\|]+)\|(?&lt;bucketId&gt;[^\|]+)" 
+    | search cm:bucket.status=local] 
+| fillnull value="Not in cache" cm:bucket.status
+| stats sum(eval(if('cm:bucket.status'="local", sizeOnDiskMB, NULL()))) as Cache, sum(eval(if('cm:bucket.status'="Not in cache", sizeOnDiskMB, NULL()))) as "Non-Cache" by splunk_server</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Cache Consumed by Peer</title>
+      <table>
+        <search>
+          <query>| dbinspect index=* cached=f 
+| join bucketId splunk_server 
+    [| rest /services/admin/cacheman 
+    | rex field=title "\|(?&lt;bucketId&gt;[^\|]+)"
+    | search cm:bucket.status=local] 
+| stats sum(sizeOnDiskMB) as CacheGB by splunk_server 
+| eval CacheGB=CacheGB/1024 
+| join type=outer splunk_server 
+    [| rest splunk_server_group=* /services/properties/server/cachemanager/max_cache_size 
+    | eval LimitGB=value/1024 
+    | fields splunk_server, LimitGB ] 
+| eval PctConsumed=round((CacheGB/LimitGB)*100,2)</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Cache Size And Timeframe by Index</title>
+      <table>
+        <search>
+          <query>| dbinspect cached=f index=* 
+| table splunk_server bucketId sizeOnDiskMB index startEpoch endEpoch 
+| where sizeOnDiskMB&gt;0 
+| stats min(startEpoch) as et max(endEpoch) as lt sum(sizeOnDiskMB) as sizeOnDiskMB by index | eval sizeOnDiskTB=sizeOnDiskMB/1024/1024 
+| eval et=strftime(et, "%Y-%m-%d %H:%M:%S") | eval lt=strftime(lt, "%Y-%m-%d %H:%M:%S")</query>
+          <earliest>0</earliest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</dashboard>

@@ -1,0 +1,224 @@
+<form>
+  <search id="internal_cacheman">
+    <query>index=_internal sourcetype=splunkd component=CacheManager action=download | rex field=cache_id "bid\|(?&lt;evicted_index&gt;[^~]+)" | fields *</query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <search id="audit_lb">
+    <query>index=_audit action=local_bucket_* kb&gt;0 info=completed | rex field=cache_id "bid\|(?&lt;evicted_index&gt;[^~]+)" | fields *</query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <search id="evicted">
+    <query>index=_internal evicted NOT StreamedSearch component=CacheManager | rex field=cache_id "bid\|(?&lt;evicted_index&gt;[^~]+)" | fields *</query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
+  <label>Downloads ⬇️</label>
+  <fieldset submitButton="false">
+    <input type="time" token="time" searchWhenChanged="true">
+      <label></label>
+      <default>
+        <earliest>-60m@m</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>What is downloading</title>
+      <chart>
+        <search base="internal_cacheman">
+          <query>| spath input=download_set | rename file_types{} as file_types | timechart count by file_types span=1s usenull=f | rename VALUE_* as *</query>
+        </search>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisStart</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Download Rate - NOTE this seems to be inflated vs. iostat</title>
+      <chart>
+        <search>
+          <query>index=_audit  kb&gt;0 info=completed | rex field=cache_id "bid\|(?&lt;evicted_index&gt;[^~]+)" | fields * |  search action=*download*
+| eval elapsed_s=elapsed_ms/1000, mbps=kb/elapsed_s/1024
+| timechart max(mbps) as MBps by host
+| eval MBps=round(MBps, 1)</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.visibility">collapsed</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Download rate by Index</title>
+      <chart>
+        <search>
+          <query>index=_audit  kb&gt;0 info=completed | rex field=cache_id "bid\|(?&lt;evicted_index&gt;[^~]+)" | fields * |  search action=*download*
+| eval elapsed_s=elapsed_ms/1000, mbps=kb/elapsed_s/1024
+| timechart max(mbps) as MBps by evicted_index
+| eval MBps=round(MBps, 1)
+| rename VALUE_* as *</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>CacheManager Downloads</title>
+      <chart>
+        <search base="internal_cacheman">
+          <query>| search action=download
+| timechart count by evicted_index span=1s
+| rename VALUE_* as *</query>
+        </search>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.visibility">collapsed</option>
+        <option name="charting.axisY.scale">log</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisEnd</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Download time in ms by index</title>
+      <chart>
+        <search base="internal_cacheman">
+          <query>| timechart last(elapsed_ms) as "ms" by evicted_index usenull=f span=1s | rename VALUE_* as *</query>
+        </search>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.visibility">collapsed</option>
+        <option name="charting.axisY.scale">log</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Remote Bucket Download Volume by Index</title>
+      <chart>
+        <search>
+          <query>index=_audit action=remote_bucket_download kb&gt;0 info=completed | rex field=cache_id "bid\|(?&lt;index_name&gt;[^~]+)" | fields * | timechart sum(kb) by index_name
+| rename VALUE_* as *</query>
+          <earliest>-4h@m</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.visibility">collapsed</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">log</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Cache Hits/Misses</title>
+      <chart>
+        <search>
+          <query>index=_internal source=*metrics.log group=cachemgr_bucket
+| timechart last(cache_hit) as Hits last(cache_miss) as Misses</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisEnd</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+      <html>When a search needs a bucket and it's already in cache, that's a hit. If the bucket needs to be downloaded, that's a miss.</html>
+    </panel>
+    <panel>
+      <title>Remote Storage Search Overhead</title>
+      <chart>
+        <search>
+          <query>index=_internal source=*/splunkd_access.log
+| rex field=uri "/services/admin/cacheman/bid|(?&lt;bid&gt;[^|]*)|/close" 
+| search uri=*/close* 
+| eval mytime=strftime(_time, "%Y-%m-%d %H:%M:%S") 
+| stats last(_time) as _time count as buckets, sum(miss_ms) as miss_ms sum(search_ms) as search_ms, min(mytime) as issuetime by sid 
+| fillnull value=0 search_ms 
+| eval overheadRatio=(miss_ms/search_ms) 
+| fillnull value=0 overheadRatio 
+| eval searchSpeed=case(overheadRatio &gt; 2,"&gt; 50%", overheadRatio &lt; .2, "&lt; 10%", true(), "10%-50%") 
+| timechart count by searchSpeed</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisEnd</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+      <html>Portion of search time spent downloading buckets from remote storage.</html>
+    </panel>
+    <panel>
+      <title>Free Local Space Left</title>
+      <chart>
+        <search>
+          <query>index=_internal host=* sourcetype=splunkd metrics group=spacemgr | bin _time span=30s | eval GB=free_bytes/1024/1024/1024 | eval GB=round(GB, 0) | timechart last(GB) as size by host span=30s | eval threshold = 5 | rename threshold as Reserved</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <refresh>1m</refresh>
+          <refreshType>delay</refreshType>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+</form>
