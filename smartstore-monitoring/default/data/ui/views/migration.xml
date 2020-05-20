@@ -38,7 +38,7 @@
       <title>Started Migrations</title>
       <event>
         <search>
-          <query>index=_internal source="splunkd.log" DatabaseDirectoryManager "Remote storage migration needed" | timechart count by idx</query>
+          <query>index=_internal source="*splunkd.log" DatabaseDirectoryManager "Remote storage migration needed" | timechart count by idx</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
         </search>
@@ -49,7 +49,7 @@
       <title>Completed Migrations</title>
       <event>
         <search>
-          <query>index=_internal source="splunkd.log" component=CacheManager "Remote storage migration" completed</query>
+          <query>index=_internal source="*splunkd.log" component=CacheManager "Remote storage migration" completed</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
         </search>
