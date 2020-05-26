@@ -3,7 +3,8 @@ name: AppInspect Validation
 on: push
 
 jobs:
-  release:
+  appinspect:
+    name: AppInspect Validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -16,9 +17,10 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt-get install libxml2-dev libxslt1-dev
           python -m pip install http://download.splunk.com/misc/appinspect/splunk-appinspect-latest.tar.gz
 
-      - name: AppInspect
+      - name: Run AppInspect
         run: |
           splunk-appinspect inspect smartstore-app --output-file appinspect.json
           exit `cat appinspect.json | jq '.summary.failure'`
