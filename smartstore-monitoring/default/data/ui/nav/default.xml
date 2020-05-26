@@ -5,7 +5,6 @@
   <view name="cache_inspector" />
   <view name="investigate_cache_miss" />
   <view name="performance" />
-  <view name="history" />
   <view name="migration" />
   <view name="errors" />
   <collection label="Utilities">
