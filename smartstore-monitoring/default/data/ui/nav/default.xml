@@ -7,6 +7,7 @@
   <view name="performance" />
   <view name="history" />
   <view name="migration" />
+  <view name="errors" />
   <collection label="Utilities">
     <view name="dashboards"  />
     <view name="search" />
