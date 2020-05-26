@@ -1,16 +1,16 @@
 <form>
   <search id="internal_cacheman">
-    <query>index=_internal sourcetype=splunkd component=CacheManager action=upload | rex field=cache_id "bid\|(?&lt;evicted_index&gt;[^~]+)" | fields *</query>
+    <query>index=_internal sourcetype=splunkd component=CacheManager action=upload | fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
   <search id="audit_lb">
-    <query>index=_audit action=local_bucket_* kb&gt;0 info=completed | rex field=cache_id "bid\|(?&lt;evicted_index&gt;[^~]+)" | fields *</query>
+    <query>index=_audit action=local_bucket_* kb&gt;0 info=completed | fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
   <search id="evicted">
-    <query>index=_internal evicted NOT StreamedSearch component=CacheManager | rex field=cache_id "bid\|(?&lt;evicted_index&gt;[^~]+)" | fields *</query>
+    <query>index=_internal evicted NOT StreamedSearch component=CacheManager | fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
@@ -26,10 +26,10 @@
   </fieldset>
   <row>
     <panel>
-      <title>CacheManager Uploads</title>
+      <title>Uploaded Buckets by Index</title>
       <chart>
         <search base="internal_cacheman">
-          <query>| timechart count by evicted_index | rename VALUE_* as *</query>
+          <query>| timechart count by cache_id_index | rename VALUE_* as *</query>
         </search>
         <option name="charting.axisTitleX.visibility">collapsed</option>
         <option name="charting.axisTitleY.visibility">collapsed</option>
