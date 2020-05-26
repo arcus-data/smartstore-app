@@ -22,5 +22,5 @@ jobs:
 
       - name: Run AppInspect
         run: |
-          splunk-appinspect inspect smartstore-app --output-file appinspect.json
+          splunk-appinspect inspect smartstore-monitoring --output-file appinspect.json
           exit `cat appinspect.json | jq '.summary.failure'`
