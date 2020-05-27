@@ -1,23 +1,23 @@
 <form>
   <search id="internal_cacheman">
-    <query>index=_internal sourcetype=splunkd component=CacheManager action=upload | rex field=cache_id "bid\|(?&lt;evicted_index&gt;[^~]+)" | fields *</query>
+    <query>index=_internal sourcetype=splunkd component=CacheManager action=upload status=succeeded | rex field=cache_id "\|(?&lt;cache_id_index&gt;[^~]+)" | fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
   <search id="audit_lb">
-    <query>index=_audit action=local_bucket_* kb&gt;0 info=completed | rex field=cache_id "bid\|(?&lt;evicted_index&gt;[^~]+)" | fields *</query>
+    <query>index=_audit action=local_bucket_* kb&gt;0 info=completed | rex field=cache_id "\|(?&lt;cache_id_index&gt;[^~]+)"  | fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
   <search id="evicted">
-    <query>index=_internal evicted NOT StreamedSearch component=CacheManager | rex field=cache_id "bid\|(?&lt;evicted_index&gt;[^~]+)" | fields *</query>
+    <query>index=_internal evicted NOT StreamedSearch component=CacheManager | rex field=cache_id "\|(?&lt;cache_id_index&gt;[^~]+)"  | fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
   <label>Uploads ⬆️</label>
   <fieldset submitButton="false">
-    <input type="time" token="time">
-      <label></label>
+    <input type="time" token="time" searchWhenChanged="true">
+      <label>Time Range</label>
       <default>
         <earliest>-60m@m</earliest>
         <latest>now</latest>
@@ -26,10 +26,35 @@
   </fieldset>
   <row>
     <panel>
-      <title>CacheManager Uploads</title>
+      <title>Buckets Uploaded to S3</title>
+      <single>
+        <search base="internal_cacheman">
+          <query>| dedup cache_id | stats count</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+        <option name="showTrendIndicator">0</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Total Size of S3 Uploads</title>
+      <single>
+        <search base="internal_cacheman">
+          <query>| eval GB=round(kb/1024/1024,1) | stats sum(GB) as GB</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="numberPrecision">0.0</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+        <option name="showTrendIndicator">0</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Bucket Uploads by Index</title>
       <chart>
         <search base="internal_cacheman">
-          <query>| timechart count by evicted_index | rename VALUE_* as *</query>
+          <query>| timechart count by cache_id_index | rename VALUE_* as *</query>
         </search>
         <option name="charting.axisTitleX.visibility">collapsed</option>
         <option name="charting.axisTitleY.visibility">collapsed</option>
@@ -42,7 +67,7 @@
       </chart>
     </panel>
     <panel>
-      <title>Local Bucket Upload Throughput (Mbps)</title>
+      <title>Estimated Bucket Upload Rate by Index (MB/s)</title>
       <chart>
         <search base="audit_lb">
           <query>| search action=local_bucket_upload | eval elapsed_s=elapsed_ms/1000, mbps=kb/elapsed_s/1024 | timechart max(mbps) as MBps | eval MBps=round(MBps, 1)</query>
@@ -59,7 +84,7 @@
   </row>
   <row>
     <panel>
-      <title>Uploads Pending/Queued by Indexer</title>
+      <title>Bucket Uploads Pending/Queued by Indexer</title>
       <chart>
         <search>
           <query>| rest /services/admin/cacheman/_metrics
@@ -79,12 +104,19 @@
         <option name="charting.legend.placement">bottom</option>
         <option name="refresh.display">progressbar</option>
       </chart>
+      <html>
+        <ul>
+          <li>Pending Uploads - Buckets Splunk is attempting to upload to S3</li>
+          <li>Queued Uploads - Buckets actively waiting for an available slot to upload based on <code>max_concurrent_uploads</code>
+          </li>
+        </ul>
+      </html>
     </panel>
     <panel>
-      <title>Evicted Indexes</title>
+      <title>Evicted Buckets by Index</title>
       <chart>
         <search base="evicted">
-          <query>| timechart count by evicted_index usenull=f | rename VALUE_* as *</query>
+          <query>| timechart count by cache_id_index usenull=f | rename VALUE_* as *</query>
         </search>
         <option name="charting.axisTitleX.visibility">collapsed</option>
         <option name="charting.axisTitleY.visibility">collapsed</option>
@@ -96,7 +128,7 @@
       </chart>
     </panel>
     <panel>
-      <title>Eviction Reasons</title>
+      <title>Bucket Eviction Reasons</title>
       <chart>
         <search base="evicted">
           <query>| timechart count by reason usenull=f</query>
@@ -111,7 +143,7 @@
   </row>
   <row>
     <panel>
-      <title>Evictions by Peer</title>
+      <title>Bucket Evictions by Indexer</title>
       <chart>
         <search base="evicted">
           <query>| timechart count by splunk_server usenull=f | rename VALUE_* as *</query>

@@ -1,0 +1,29 @@
+<form>
+  <label>Errors ❌</label>
+  <fieldset submitButton="false">
+    <input type="time" token="time" searchWhenChanged="true">
+      <label>Time Range</label>
+      <default>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <table>
+        <search>
+          <query>index=_internal log_level!="INFO" component IN (S3Client, StorageInterface, CacheManager, CacheManagerHandler, S2BucketCache, BatchSearch, CursoredSearch, IndexScopedSearch, ISearchOperator)
+          | sort - _time
+          | convert ctime(_time) as time
+| table time, log_level, component, event_message
+| rename time AS "Latest Time", log_level as "Log Level", component as Component, event_message as "Event Message"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="count">25</option>
+        <option name="drilldown">cell</option>
+      </table>
+    </panel>
+  </row>
+</form>
