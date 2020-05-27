@@ -1,11 +1,11 @@
 <form>
   <search id="internal_cacheman">
-    <query>index=_internal sourcetype=splunkd component=CacheManager action=download status=succeeded | fields *</query>
+    <query>index=_internal sourcetype=splunkd component=CacheManager action=download status=succeeded | rex field=cache_id "\|(?&lt;cache_id_index&gt;[^~]+)" | fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
   <search id="audit_rb">
-    <query>index=_audit action=remote_bucket_download kb&gt;0 info=completed | fields *</query>
+    <query>index=_audit action=remote_bucket_download kb&gt;0 info=completed | rex field=cache_id "\|(?&lt;cache_id_index&gt;[^~]+)"| fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
@@ -24,7 +24,7 @@
       <title>Bucket Content Type being Downloaded</title>
       <chart>
         <search base="internal_cacheman">
-          <query>| spath input=download_set | rename file_types{} as file_types | timechart count by file_types span=1s usenull=f | rename VALUE_* as *</query>
+          <query>| spath input=download_set | rename file_types{} as file_types | timechart useother=f count by file_types span=1s usenull=f | rename VALUE_* as *</query>
         </search>
         <option name="charting.axisY.scale">linear</option>
         <option name="charting.chart">column</option>
@@ -41,7 +41,7 @@
         <search base="audit_rb">
           <query>| eval elapsed_s=elapsed_ms/1000, mbps=kb/elapsed_s/1024
 | eval mbps=round(mbps, 1)
-| timechart max(mbps) as MBps by cache_id_index
+| timechart useother=f max(mbps) as MBps by cache_id_index
 | rename VALUE_* as *</query>
         </search>
         <option name="charting.axisTitleX.visibility">collapsed</option>
@@ -57,7 +57,8 @@
       <title>Bucket Downloads by Index</title>
       <chart>
         <search base="internal_cacheman">
-          <query>| dedup cache_id | timechart count by cache_id_index span=1s
+          <query>| dedup cache_id
+| timechart useother=f count by cache_id_index span=1s
 | rename VALUE_* as *</query>
         </search>
         <option name="charting.axisTitleX.visibility">collapsed</option>
@@ -72,14 +73,14 @@
       </chart>
     </panel>
     <panel>
-      <title>Download time in ms by index</title>
+      <title>Average Bucket Download Time in Milliseconds by Index</title>
       <chart>
         <search base="internal_cacheman">
-          <query>| timechart last(elapsed_ms) as "ms" by cache_id_index usenull=f span=1s | rename VALUE_* as *</query>
+          <query>| timechart avg(elapsed_ms) as "ms" by cache_id_index usenull=f span=1s | rename VALUE_* as *</query>
         </search>
         <option name="charting.axisTitleX.visibility">collapsed</option>
         <option name="charting.axisTitleY.visibility">collapsed</option>
-        <option name="charting.axisY.scale">log</option>
+        <option name="charting.axisY.scale">linear</option>
         <option name="charting.chart">line</option>
         <option name="charting.drilldown">none</option>
         <option name="charting.legend.placement">bottom</option>
@@ -91,7 +92,7 @@
       <chart>
         <search base="audit_rb">
           <query>| eval GB=round(kb/1024/1024, 1)
-| timechart sum(GB) by cache_id_index
+| timechart useother=f sum(GB) by cache_id_index
 | rename VALUE_* as *</query>
         </search>
         <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
@@ -135,7 +136,8 @@
       <title>Bucket Downloads by Splunk Server</title>
       <chart>
         <search base="internal_cacheman">
-          <query>| dedup cache_id | timechart count by splunk_server span=1s
+          <query>| dedup cache_id
+| timechart useother=f count by splunk_server span=1s
 | rename VALUE_* as *</query>
         </search>
         <option name="charting.axisTitleX.visibility">collapsed</option>
@@ -155,11 +157,26 @@
         <search base="audit_rb">
           <query>| eval elapsed_s=elapsed_ms/1000, mbps=kb/elapsed_s/1024
 | eval mbps=round(mbps, 1)
-| timechart max(mbps) as MBps by splunk_server
+| timechart useother=f max(mbps) as MBps by splunk_server
 | rename VALUE_* as *</query>
         </search>
         <option name="charting.axisTitleX.visibility">collapsed</option>
         <option name="charting.chart">line</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Queued Download Jobs by Indexer</title>
+      <chart>
+        <search>
+          <query>| rest /services/admin/cacheman/_metrics
+| table splunk_server downloads.queued
+| rename downloads.queued as "Queued Downloads"</query>
+          <earliest>$earliest$</earliest>
+          <latest>$latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
         <option name="charting.drilldown">none</option>
       </chart>
     </panel>
