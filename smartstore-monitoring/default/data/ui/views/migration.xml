@@ -1,12 +1,37 @@
-<dashboard>
+<form>
   <!--https://answers.splunk.com/answers/701684/smartstorecan-i-get-more-information-on-migrating.html#answer-701685-->
+  <search id="rest_base">
+    <query>| rest /services/admin/cacheman/_metrics splunk_server=* | fields *</query>
+  </search>
   <label>Migration 📦</label>
+  <fieldset submitButton="false">
+    <input type="time" token="time" searchWhenChanged="true">
+      <label>Time Range</label>
+      <default>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Bucket Migrations Remaining</title>
+      <single>
+        <search base="rest_base">
+          <query>| rename migration.total_jobs AS migration_jobs_total,migration.current_job AS migration_jobs_complete
+| eval migration_jobs_remaining=migration_jobs_total-migration_jobs_complete
+| stats sum(migration_jobs_remaining)</query>
+        </search>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+  </row>
   <row>
     <panel>
       <title>Migration Progress</title>
       <table>
-        <search>
-          <query>| rest /services/admin/cacheman/_metrics splunk_server=*
+        <search base="rest_base">
+          <query>
 | rename migration.total_jobs AS migration_jobs_total,migration.current_job AS migration_jobs_complete
 | eval migration_jobs_remaining=migration_jobs_total-migration_jobs_complete
 | fillnull migration.end_epoch value="-"
@@ -25,8 +50,6 @@
 | eval time_elapsed_hours=round(time_elapsed_secs/3600,2)
 | eval time_remaining_hours=round((time_remaining_secs/3600),2)
 | table splunk_server migration.status migration_start_time migration_end_time current_time migration_jobs_total migration_jobs_complete migration_jobs_remaining percent_complete time_elapsed_hours time_remaining_hours seconds_per_job</query>
-          <earliest>-24h@h</earliest>
-          <latest>now</latest>
         </search>
         <option name="drilldown">none</option>
         <option name="refresh.display">progressbar</option>
@@ -35,26 +58,30 @@
   </row>
   <row>
     <panel>
-      <title>Started Migrations</title>
-      <event>
+      <title>Bucket Migrations Initiated</title>
+      <chart>
         <search>
-          <query>index=_internal source="*splunkd.log" DatabaseDirectoryManager "Remote storage migration needed" | timechart count by idx</query>
-          <earliest>-24h@h</earliest>
-          <latest>now</latest>
+          <query>index=_internal source="*splunkd.log" DatabaseDirectoryManager "Remote storage migration" | timechart sum(count) by idx | rename VALUE_* as *</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
         </search>
-        <option name="list.drilldown">none</option>
-      </event>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
     </panel>
     <panel>
       <title>Completed Migrations</title>
-      <event>
+      <table>
         <search>
-          <query>index=_internal source="*splunkd.log" component=CacheManager "Remote storage migration" completed</query>
-          <earliest>-24h@h</earliest>
-          <latest>now</latest>
+          <query>index=_internal source="*splunkd.log" component=CacheManager "Remote storage migration" completed | table _time, splunk_server, upload_jobs, duration_sec | rename splunk_server as Indexer, upload_jobs as "Buckets Uploaded", duration_sec as "Duration in Seconds"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
         </search>
-        <option name="list.drilldown">none</option>
-      </event>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
     </panel>
   </row>
-</dashboard>
+</form>
