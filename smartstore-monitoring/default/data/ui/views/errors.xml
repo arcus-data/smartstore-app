@@ -4,7 +4,7 @@
     <input type="time" token="time" searchWhenChanged="true">
       <label>Time Range</label>
       <default>
-        <earliest>-24h@h</earliest>
+        <earliest>-60m@m</earliest>
         <latest>now</latest>
       </default>
     </input>
