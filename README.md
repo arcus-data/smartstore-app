@@ -6,9 +6,8 @@ Currently Work in Progress
 ### Dashboards Included
 * Uploads to S3
 * Downloads from S3
-* Cache Inspector
+* Cache Inspector and Size History
 * Cache Miss Investigator
 * Performance
-* Cache Size History - (In progress)
 * Migration Activity
 * Errors
