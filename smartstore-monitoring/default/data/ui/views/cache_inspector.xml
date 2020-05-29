@@ -1,7 +1,7 @@
 <form>
   <label>Cache Inspector 📊</label>
   <search id="rest_base">
-    <query>| rest /services/admin/cacheman | rex field=title "\|(?&lt;index&gt;[^~]+)" | fields *</query>
+    <query>| rest /services/admin/cacheman | dedup title | rex field=title "\|(?&lt;index&gt;[^~]+)" | fields *</query>
   </search>
   <fieldset submitButton="false"></fieldset>
   <row>
