@@ -103,7 +103,7 @@
   </row>
   <row>
     <panel>
-      <title>Estimated Total Size of SmartStore Cache in S3 by Index (bytes)</title>
+      <title>Estimated Total Size of SmartStore Cache in S3 by Index (GB)</title>
       <input type="time" token="time" searchWhenChanged="true">
         <label>Summary Time Range</label>
         <default>
@@ -113,7 +113,7 @@
       </input>
       <chart>
         <search>
-          <query>index=summary search_name="SmartStore Cache Size" | timechart span=15m sum(cm:bucket.estimated_size) by orig_index | rename VALUE_* as *</query>
+          <query>index=summary search_name="SmartStore Cache Size" | stats sum(cm:bucket.estimated_size) as size by _time, orig_index | eval size=round(size/1024/1024/1024, 2) | xyseries _time orig_index size | rename VALUE_* as *</query>
           <earliest>$time.earliest$</earliest>
           <latest>$time.latest$</latest>
         </search>
