@@ -29,7 +29,6 @@
                     <li>Cache Overview:</li>
                     <ul>
                         <li><a href="cache_inspector">Cache Inspector</a></li>
-                        <li><a href="history">Cache Size History</a></li>
                     </ul>
                     <li>Cache Operations:</li>
                     <ul>
@@ -44,6 +43,7 @@
                     <li>Misc / Other:</li>
                     <ul>
                         <li><a href="migration">Migration</a></li>
+                        <li><a href="errors">Errors</a></li>
                     </ul>
                 </ol>
             </html>
