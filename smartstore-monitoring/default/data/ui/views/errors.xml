@@ -1,5 +1,10 @@
 <form>
   <label>Errors ❌</label>
+  <search id="base">
+    <query>index=_internal log_level!="INFO" component IN (S3Client, StorageInterface, CacheManager, CacheManagerHandler, S2BucketCache, BatchSearch, CursoredSearch, IndexScopedSearch, ISearchOperator) | fields *</query>
+    <earliest>$time.earliest$</earliest>
+    <latest>$time.latest$</latest>
+  </search>
   <fieldset submitButton="false">
     <input type="time" token="time" searchWhenChanged="true">
       <label>Time Range</label>
@@ -11,18 +16,29 @@
   </fieldset>
   <row>
     <panel>
+      <title>Errors by Splunk Server</title>
+      <chart>
+        <search base="base">
+          <query>| timechart count by splunk_server</query>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
       <table>
-        <search>
-          <query>index=_internal log_level!="INFO" component IN (S3Client, StorageInterface, CacheManager, CacheManagerHandler, S2BucketCache, BatchSearch, CursoredSearch, IndexScopedSearch, ISearchOperator)
-          | sort - _time
+        <search base="base">
+          <query>| sort - _time
           | convert ctime(_time) as time
-| table time, log_level, component, event_message
-| rename time AS "Latest Time", log_level as "Log Level", component as Component, event_message as "Event Message"</query>
-          <earliest>$time.earliest$</earliest>
-          <latest>$time.latest$</latest>
+| table time, splunk_server, log_level, component, event_message
+| rename time AS "Latest Time", splunk_server AS Indexer, log_level as "Log Level", component as Component, event_message as "Event Message"</query>
         </search>
         <option name="count">25</option>
         <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
       </table>
     </panel>
   </row>
