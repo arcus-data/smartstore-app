@@ -2,13 +2,77 @@
   <label>Performance 🏎</label>
   <fieldset submitButton="false">
     <input type="time" token="time">
-      <label></label>
+      <label>Time Range</label>
       <default>
         <earliest>-60m@m</earliest>
         <latest>now</latest>
       </default>
     </input>
   </fieldset>
+  <row>
+    <panel>
+      <title>Cache Hits/Misses</title>
+      <chart>
+        <search>
+          <query>index=_internal source=*metrics.log group=cachemgr_bucket
+| timechart last(cache_hit) as Hits last(cache_miss) as Misses</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisEnd</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+      <html>When a search needs a bucket and it's already in cache, that's a hit. If the bucket needs to be downloaded, that's a miss.</html>
+    </panel>
+    <panel>
+      <title>Remote Storage Search Overhead</title>
+      <chart>
+        <search>
+          <query>index=_internal source=*/splunkd_access.log
+| rex field=uri "/services/admin/cacheman/bid|(?&lt;bid&gt;[^|]*)|/close"
+| search uri=*/close*
+| eval mytime=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| stats last(_time) as _time count as buckets, sum(miss_ms) as miss_ms sum(search_ms) as search_ms, min(mytime) as issuetime by sid
+| fillnull value=0 search_ms
+| eval overheadRatio=(miss_ms/search_ms)
+| fillnull value=0 overheadRatio
+| eval searchSpeed=case(overheadRatio &gt; 2,"&gt; 50%", overheadRatio &lt; .2, "&lt; 10%", true(), "10%-50%")
+| timechart count by searchSpeed</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisEnd</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+      <html>Portion of search time spent downloading buckets from remote storage.</html>
+    </panel>
+    <panel>
+      <title>Free Local Space Left</title>
+      <chart>
+        <search>
+          <query>index=_internal host=* sourcetype=splunkd metrics group=spacemgr | bin _time span=30s | eval GB=free_bytes/1024/1024/1024 | eval GB=round(GB, 0) | timechart last(GB) as size by host span=30s | eval threshold = 5 | rename threshold as Reserved</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <refresh>1m</refresh>
+          <refreshType>delay</refreshType>
+        </search>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
   <row>
     <panel>
       <title>Response from Peers</title>
