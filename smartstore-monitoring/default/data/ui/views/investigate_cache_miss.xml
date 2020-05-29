@@ -1,19 +1,13 @@
 <form>
   <label>Cache Miss Investigator 🕵️</label>
   <search id="base">
-    <done>
-      <eval token="execution_time">round($job.runDuration$,2)</eval>
-    </done>
-    <query>index=_internal group=cachemgr_bucket
-    | bin _time span=$selected_span$sec
-| stats sum(cache_miss) as cache_miss by host _time
-</query>
+    <query>index=_internal group=cachemgr_bucket | bin _time span=$selected_span$sec | stats sum(cache_miss) as cache_miss by host _time</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
   <init>
-        <eval token="form.selected_span">61</eval>
-        <eval token="form.human_span">00:01:02</eval>
+    <eval token="form.selected_span">61</eval>
+    <eval token="form.human_span">00:01:02</eval>
   </init>
   <fieldset submitButton="false">
     <input type="time" token="time">
@@ -25,10 +19,11 @@
       <change>
         <condition value="None"></condition>
         <condition>
-        <eval token="duration_seconds">relative_time(now(), $time.latest$)-relative_time(now(), $time.earliest$)</eval>
-        <eval token="form.selected_span">ceiling($duration_seconds$/300/31)*31</eval>
-        <unset token="selected_host"></unset>
-        </condition>       
+          <eval token="duration_seconds">relative_time(now(), $time.latest$)-relative_time(now(), $time.earliest$)</eval>
+          <eval token="form.selected_span">ceiling($duration_seconds$/300/31)*31</eval>
+          <unset token="selected_host"></unset>
+          <unset token="sid"></unset>
+        </condition>
       </change>
     </input>
     <input type="text" token="selected_span">
@@ -48,9 +43,6 @@
       <title>Cache manager misses per host, select time range + host for drill down</title>
       <chart>
         <search base="base">
-          <done>
-            <set token="execution_time">$job.runDuration$</set>
-          </done>
           <query>| xyseries _time host cache_miss</query>
         </search>
         <option name="charting.chart">line</option>
@@ -59,8 +51,8 @@
         <option name="refresh.display">progressbar</option>
         <drilldown>
           <eval token="selected_host">"host=".$click.name2$</eval>
-          <set token="selection_earliest">$earliest$</set>
-          <set token="selection_latest">$latest$</set>
+          <eval token="selection_earliest">relative_time($click.value$, "-".$form.selected_span$."s")</eval>
+          <eval token="selection_latest">relative_time($click.value$, "+".$form.selected_span$."s")</eval>
         </drilldown>
       </chart>
     </panel>
@@ -71,12 +63,6 @@
       <table>
         <title>Drill down to see details of search across all indexes</title>
         <search>
-          <done>
-            <set token="search_execution_time">$job.runDuration$</set>
-         </done>
-          <done>
-            <set token="search_execution_time">$job.runDuration$</set>
-          </done>
           <query>index=_internal $selected_host$ sourcetype=splunkd_remote_searches StreamedSearch Streamed search connection terminated search_id=*
 | rex field=_raw "search_rawdata_bucketcache_error=(?&lt;rawdata_bucketcache_error&gt;[\d.]+)"
 | rex field=_raw "search_rawdata_bucketcache_miss=(?&lt;rawdata_bucketcache_miss&gt;[\d.]+)"
@@ -123,10 +109,33 @@
           <latest>$selection_latest$</latest>
         </search>
         <option name="drilldown">cell</option>
-        <option name="refresh.display">progressbar</option>
         <drilldown>
-          <link target="_blank">search?q=index=_*%20$row.search_id=$&amp;earliest=$selection_earliest$&amp;latest=$selection_latest$</link>
+          <set token="sid_raw">$row.search_id$</set>
+          <eval token="sid">replace($row.search_id$, "^[^_]+_[^_]+_", "")</eval>
         </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row depends="$sid$">
+    <panel>
+      <event>
+        <title>Internal Logs for $sid_raw$</title>
+        <search>
+          <query>index=_* $sid_raw$ sourcetype!=splunkd_access</query>
+          <earliest>$selection_earliest$</earliest>
+          <latest>$selection_latest$</latest>
+        </search>
+      </event>
+    </panel>
+    <panel>
+      <table>
+        <title>Raw Search String for search_id=$sid|s$</title>
+        <search>
+          <query>index=_audit search_id="'$sid$'" info=granted | table search</query>
+          <earliest>$selection_earliest$</earliest>
+          <latest>$selection_latest$</latest>
+        </search>
+        <option name="refresh.display">progressbar</option>
       </table>
     </panel>
   </row>
