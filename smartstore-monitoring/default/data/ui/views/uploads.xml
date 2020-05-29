@@ -37,7 +37,7 @@
       </single>
     </panel>
     <panel>
-      <title>Total Size of S3 Uploads (GB)</title>
+      <title>Total Size of S3 Uploads</title>
       <single>
         <search base="internal_cacheman">
           <query>| eval GB=round(kb/1024/1024,1) | stats sum(GB) as GB</query>
@@ -136,6 +136,7 @@
         <option name="charting.axisTitleX.visibility">collapsed</option>
         <option name="charting.axisTitleY.visibility">collapsed</option>
         <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
         <option name="charting.drilldown">none</option>
         <option name="charting.legend.placement">bottom</option>
       </chart>
