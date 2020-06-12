@@ -1,7 +1,7 @@
 <form>
   <label>Cache Miss Investigator 🕵️</label>
   <search id="base">
-    <query>index=_internal group=cachemgr_bucket | bin _time span=$selected_span$sec | stats sum(cache_miss) as cache_miss by host _time</query>
+    <query>index=_internal group=cachemgr_bucket $cluster$ | bin _time span=$selected_span$sec | stats sum(cache_miss) as cache_miss by host _time</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
@@ -10,6 +10,20 @@
     <eval token="form.human_span">00:01:02</eval>
   </init>
   <fieldset submitButton="false">
+    <input type="dropdown" token="cluster" searchWhenChanged="true">
+      <label>Cluster</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <prefix>splunk_server_group=</prefix>
+      <initialValue>*</initialValue>
+      <fieldForLabel>cluster_label</fieldForLabel>
+      <fieldForValue>cluster_label_value</fieldForValue>
+      <search>
+        <query>| rest /services/cluster/config | stats values by cluster_label | fields cluster_label | eval cluster_label_value="dmc_indexerclustergroup_".cluster_label</query>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </search>
+    </input>
     <input type="time" token="time">
       <label>Select time</label>
       <default>
@@ -63,7 +77,7 @@
       <table>
         <title>Drill down to see details of search across all indexes</title>
         <search>
-          <query>index=_internal $selected_host$ sourcetype=splunkd_remote_searches StreamedSearch Streamed search connection terminated search_id=*
+          <query>index=_internal $selected_host$ $cluster$ sourcetype=splunkd_remote_searches StreamedSearch Streamed search connection terminated search_id=*
 | rex field=_raw "search_rawdata_bucketcache_error=(?&lt;rawdata_bucketcache_error&gt;[\d.]+)"
 | rex field=_raw "search_rawdata_bucketcache_miss=(?&lt;rawdata_bucketcache_miss&gt;[\d.]+)"
 | rex field=_raw "search_index_bucketcache_error=(?&lt;index_bucketcache_error&gt;[\d.]+)"
@@ -121,7 +135,7 @@
       <event>
         <title>Internal Logs for $sid_raw$</title>
         <search>
-          <query>index=_* $sid_raw$ sourcetype!=splunkd_access</query>
+          <query>index=_* $sid_raw$ $cluster$ sourcetype!=splunkd_access</query>
           <earliest>$selection_earliest$</earliest>
           <latest>$selection_latest$</latest>
         </search>
@@ -131,7 +145,7 @@
       <table>
         <title>Raw Search String for search_id=$sid|s$</title>
         <search>
-          <query>index=_audit search_id="'$sid$'" info=granted | table search</query>
+          <query>index=_audit search_id="'$sid$'" $cluster$ info=granted | table search</query>
           <earliest>$selection_earliest$</earliest>
           <latest>$selection_latest$</latest>
         </search>
