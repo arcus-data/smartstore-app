@@ -29,7 +29,7 @@
     </input>
     <input type="checkbox" token="checkbox" searchWhenChanged="true">
       <label></label>
-      <choice value="yes">Hide receipt.json Errors?</choice>
+      <choice value="yes">Hide receipt.json messages?</choice>
       <change>
         <condition value="yes">
           <set token="receipt">NOT "receipt.json"</set>
