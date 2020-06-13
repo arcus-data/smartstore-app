@@ -1,7 +1,7 @@
 <form>
   <label>Errors ❌</label>
   <search id="base">
-    <query>index=_internal $cluster$ log_level!="INFO" component IN (S3Client, StorageInterface, CacheManager, CacheManagerHandler, S2BucketCache, BatchSearch, CursoredSearch, IndexScopedSearch, ISearchOperator) | fields *</query>
+    <query>index=_internal $cluster$ log_level!="INFO" component IN (S3Client, StorageInterface, CacheManager, CacheManagerHandler, S2BucketCache, BatchSearch, CursoredSearch, IndexScopedSearch, ISearchOperator) $receipt$ | fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
@@ -26,6 +26,20 @@
         <earliest>-60m@m</earliest>
         <latest>now</latest>
       </default>
+    </input>
+    <input type="checkbox" token="checkbox" searchWhenChanged="true">
+      <label></label>
+      <choice value="yes">Hide receipt.json Errors?</choice>
+      <change>
+        <condition value="yes">
+          <set token="receipt">NOT "receipt.json"</set>
+        </condition>
+        <condition>
+          <set token="receipt"></set>
+        </condition>
+      </change>
+      <initialValue>yes</initialValue>
+      <delimiter> </delimiter>
     </input>
   </fieldset>
   <row>
