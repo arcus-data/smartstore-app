@@ -1,15 +1,27 @@
 <form>
   <label>Cache Inspector 📊</label>
-  <search id="rest_base">
-    <query>| rest /services/admin/cacheman | dedup title | rex field=title "\|(?&lt;index&gt;[^~]+)" | fields *</query>
-  </search>
-  <fieldset submitButton="false"></fieldset>
+  <fieldset submitButton="false">
+    <input type="dropdown" token="cluster" searchWhenChanged="true">
+      <label>Cluster</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <prefix/>
+      <initialValue>*</initialValue>
+      <fieldForLabel>cluster_label</fieldForLabel>
+      <fieldForValue>servers</fieldForValue>
+      <search>
+        <query>| rest /services/cluster/config | stats values(splunk_server) as splunk_servers by cluster_label | eval servers=mvjoin(splunk_servers, ", ") | fields cluster_label servers</query>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </search>
+    </input>
+  </fieldset>
   <row>
     <panel>
       <title>Current Estimated Total Size of SmartStore Cache in S3</title>
       <single>
-        <search base="rest_base">
-          <query>| stats sum("cm:bucket.estimated_size") as size | eval size=round(size/1024/1024/1024, 2) | rename size as "Size in GB"</query>
+        <search>
+          <query>index=summary search_name="SmartStore Cache Size" | search orig_splunk_server IN ($cluster$) | stats sum(cm:bucket.estimated_size) as size by _time | chart latest(size) as size | eval size=round(size/1024/1024/1024, 2) | rename size as "Size in GB"</query>
         </search>
         <option name="drilldown">none</option>
         <option name="numberPrecision">0.0</option>
@@ -24,11 +36,13 @@
     <panel>
       <title>Current Estimated SmartStore Size by Index (GB)</title>
       <chart>
-        <search base="rest_base">
-          <query>| stats sum("cm:bucket.estimated_size") as size by index
+        <search>
+          <query>index=summary search_name="SmartStore Cache Size" | search orig_splunk_server IN ($cluster$) | stats sum("cm:bucket.estimated_size") as size by orig_index
 | eval size=round(size/1024/1024/1024, 3)
 | rename size as "Size in GB"</query>
         </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">45</option>
+        <option name="charting.axisTitleX.text">Index</option>
         <option name="charting.axisTitleY.visibility">visible</option>
         <option name="charting.axisY.scale">linear</option>
         <option name="charting.chart">column</option>
@@ -43,12 +57,15 @@
     <panel>
       <title>Cache Size on each Indexer (GB)</title>
       <chart>
-        <search base="rest_base">
-          <query>| search cm:bucket.status=local
-| stats sum("cm:bucket.estimated_size") as size by splunk_server
+        <search>
+          <query>index=summary search_name="SmartStore Cache Size"
+| search orig_splunk_server IN ($cluster$)
+| stats sum("cm:bucket.estimated_size") as size by orig_splunk_server
 | eval size=round(size/1024/1024/1024, 2)
 | rename size as "Size in GB"</query>
         </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">45</option>
+        <option name="charting.axisTitleX.text">Splunk Server</option>
         <option name="charting.chart">column</option>
         <option name="charting.chart.stackMode">default</option>
         <option name="charting.drilldown">none</option>
@@ -64,7 +81,7 @@
       <chart>
         <search>
           <query>| dbinspect index=* cached=f
-| search state!=hot
+| search splunk_server IN ($cluster$)
 | stats sum(sizeOnDiskMB) as CacheGB by splunk_server, index
 | eval CacheGB=CacheGB/1024
 | xyseries splunk_server, index, CacheGB
@@ -74,28 +91,6 @@
         </search>
         <option name="charting.chart">bar</option>
         <option name="charting.chart.stackMode">stacked</option>
-        <option name="charting.drilldown">none</option>
-        <option name="refresh.display">progressbar</option>
-      </chart>
-    </panel>
-  </row>
-  <row>
-    <panel>
-      <title>Size of SmartStore Index Data vs. Local Index Data by Indexer (MB)</title>
-      <chart>
-        <search>
-          <query>| dbinspect index=* cached=f
-| join type=outer bucketId splunk_server
-    [| rest /services/admin/cacheman
-    | rex field=title "(?&lt;bucketType&gt;[^\|]+)\|(?&lt;bucketId&gt;[^\|]+)"
-    | search cm:bucket.status=local]
-| fillnull value="Not in cache" cm:bucket.status
-| stats sum(eval(if('cm:bucket.status'="local", sizeOnDiskMB, NULL()))) as Cache, sum(eval(if('cm:bucket.status'="Not in cache", sizeOnDiskMB, NULL()))) as "Non-Cache" by splunk_server</query>
-          <earliest>0</earliest>
-          <latest></latest>
-        </search>
-        <option name="charting.chart">bar</option>
-        <option name="charting.chart.stackMode">stacked100</option>
         <option name="charting.drilldown">none</option>
         <option name="refresh.display">progressbar</option>
       </chart>
@@ -113,7 +108,7 @@
       </input>
       <chart>
         <search>
-          <query>index=summary search_name="SmartStore Cache Size" | stats sum(cm:bucket.estimated_size) as size by _time, orig_index | eval size=round(size/1024/1024/1024, 2) | xyseries _time orig_index size | rename VALUE_* as *</query>
+          <query>index=summary search_name="SmartStore Cache Size" | search orig_splunk_server IN ($cluster$) | stats sum(cm:bucket.estimated_size) as size by _time, orig_index | eval size=round(size/1024/1024/1024, 2) | xyseries _time orig_index size | rename VALUE_* as *</query>
           <earliest>$time.earliest$</earliest>
           <latest>$time.latest$</latest>
         </search>

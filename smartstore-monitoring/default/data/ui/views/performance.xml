@@ -1,6 +1,20 @@
 <form>
   <label>Performance 🏎</label>
   <fieldset submitButton="false">
+    <input type="dropdown" token="cluster" searchWhenChanged="true">
+      <label>Cluster</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <prefix>splunk_server_group=</prefix>
+      <initialValue>*</initialValue>
+      <fieldForLabel>cluster_label</fieldForLabel>
+      <fieldForValue>cluster_label_value</fieldForValue>
+      <search>
+        <query>| rest /services/cluster/config | stats values by cluster_label | fields cluster_label | eval cluster_label_value="dmc_indexerclustergroup_".cluster_label</query>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </search>
+    </input>
     <input type="time" token="time">
       <label>Time Range</label>
       <default>
@@ -14,7 +28,7 @@
       <title>Cache Hits/Misses</title>
       <chart>
         <search>
-          <query>index=_internal source=*metrics.log group=cachemgr_bucket
+          <query>index=_internal source=*metrics.log group=cachemgr_bucket $cluster$
 | timechart last(cache_hit) as Hits last(cache_miss) as Misses</query>
           <earliest>$time.earliest$</earliest>
           <latest>$time.latest$</latest>
@@ -33,7 +47,7 @@
       <title>Remote Storage Search Overhead</title>
       <chart>
         <search>
-          <query>index=_internal source=*/splunkd_access.log
+          <query>index=_internal source=*/splunkd_access.log $cluster$
 | rex field=uri "/services/admin/cacheman/bid|(?&lt;bid&gt;[^|]*)|/close"
 | search uri=*/close*
 | eval mytime=strftime(_time, "%Y-%m-%d %H:%M:%S")
@@ -59,7 +73,7 @@
       <title>Free Local Space Left</title>
       <chart>
         <search>
-          <query>index=_internal host=* sourcetype=splunkd metrics group=spacemgr | bin _time span=30s | eval GB=free_bytes/1024/1024/1024 | eval GB=round(GB, 0) | timechart last(GB) as size by host span=30s | eval threshold = 5 | rename threshold as Reserved</query>
+          <query>index=_internal host=* sourcetype=splunkd metrics group=spacemgr $cluster$ | bin _time span=30s | eval GB=free_bytes/1024/1024/1024 | eval GB=round(GB, 0) | timechart last(GB) as size by host span=30s | eval threshold = 5 | rename threshold as Reserved</query>
           <earliest>$time.earliest$</earliest>
           <latest>$time.latest$</latest>
           <refresh>1m</refresh>
@@ -78,7 +92,7 @@
       <title>Response from Peers</title>
       <chart>
         <search>
-          <query>(data.search_props.sid=* host=* host!=*sh* splunk_server=* index=_introspection sourcetype=splunk_resource_usage "UI:Dashboard"  data.search_props.user=* data.search_props.provenance=*)
+          <query>(data.search_props.sid=* host=* host!=*sh* splunk_server=* index=_introspection sourcetype=splunk_resource_usage "UI:Dashboard"  $cluster$ data.search_props.user=* data.search_props.provenance=*)
 | eval app='data.search_props.app', elapsed='data.elapsed', label='data.search_props.label', type='data.search_props.type', mode='data.search_props.mode', user='data.search_props.user', provenance='data.search_props.provenance', label=coalesce(label,provenance), search_head='data.search_props.search_head'
 | timechart useother=f limit=0 max(elapsed) AS Response by host</query>
           <earliest>$time.earliest$</earliest>
@@ -98,7 +112,7 @@
       <title>Avg. Data Written (MB)</title>
       <chart>
         <search>
-          <query>(data.search_props.sid=* host=* splunk_server=* index=_introspection sourcetype=splunk_resource_usage "UI:Dashboard"  data.search_props.user=* data.search_props.provenance=* data.written_mb=* host!=*sh*)
+          <query>(data.search_props.sid=* host=* splunk_server=* index=_introspection sourcetype=splunk_resource_usage "UI:Dashboard" $cluster$  data.search_props.user=* data.search_props.provenance=* data.written_mb=* host!=*sh*)
 | eval app='data.search_props.app', elapsed='data.elapsed', label='data.search_props.label', type='data.search_props.type', mode='data.search_props.mode', user='data.search_props.user', provenance='data.search_props.provenance', label=coalesce(label,provenance), search_head='data.search_props.search_head'
 | timechart useother=f limit=0 avg(data.written_mb) AS Response by host</query>
           <earliest>$time.earliest$</earliest>
@@ -116,7 +130,7 @@
       <title>Avg. Data Read (MB)</title>
       <chart>
         <search>
-          <query>(data.search_props.sid=* host=* splunk_server=* index=_introspection sourcetype=splunk_resource_usage "UI:Dashboard"  data.search_props.user=* data.search_props.provenance=* data.written_mb=* data.read_mb
+          <query>(data.search_props.sid=* host=* splunk_server=* index=_introspection sourcetype=splunk_resource_usage "UI:Dashboard" $cluster$  data.search_props.user=* data.search_props.provenance=* data.written_mb=* data.read_mb
 =* host!=*sh*) 
 | eval app='data.search_props.app', elapsed='data.elapsed', label='data.search_props.label', type='data.search_props.type', mode='data.search_props.mode', user='data.search_props.user', provenance='data.search_props.provenance', label=coalesce(label,provenance), search_head='data.search_props.search_head'
 | timechart useother=f limit=0 avg(data.read_mb) AS Response by host</query>

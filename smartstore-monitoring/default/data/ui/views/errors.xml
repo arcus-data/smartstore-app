@@ -1,17 +1,45 @@
 <form>
   <label>Errors ❌</label>
   <search id="base">
-    <query>index=_internal log_level!="INFO" component IN (S3Client, StorageInterface, CacheManager, CacheManagerHandler, S2BucketCache, BatchSearch, CursoredSearch, IndexScopedSearch, ISearchOperator) | fields *</query>
+    <query>index=_internal $cluster$ log_level!="INFO" component IN (S3Client, StorageInterface, CacheManager, CacheManagerHandler, S2BucketCache, BatchSearch, CursoredSearch, IndexScopedSearch, ISearchOperator) $receipt$ | fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
   <fieldset submitButton="false">
+    <input type="dropdown" token="cluster" searchWhenChanged="true">
+      <label>Cluster</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <prefix>splunk_server_group=</prefix>
+      <initialValue>*</initialValue>
+      <fieldForLabel>cluster_label</fieldForLabel>
+      <fieldForValue>cluster_label_value</fieldForValue>
+      <search>
+        <query>| rest /services/cluster/config | stats values by cluster_label | fields cluster_label | eval cluster_label_value="dmc_indexerclustergroup_".cluster_label</query>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </search>
+    </input>
     <input type="time" token="time" searchWhenChanged="true">
       <label>Time Range</label>
       <default>
         <earliest>-60m@m</earliest>
         <latest>now</latest>
       </default>
+    </input>
+    <input type="checkbox" token="checkbox" searchWhenChanged="true">
+      <label></label>
+      <choice value="yes">Hide receipt.json messages?</choice>
+      <change>
+        <condition value="yes">
+          <set token="receipt">NOT "receipt.json"</set>
+        </condition>
+        <condition>
+          <set token="receipt"></set>
+        </condition>
+      </change>
+      <initialValue>yes</initialValue>
+      <delimiter> </delimiter>
     </input>
   </fieldset>
   <row>

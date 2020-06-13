@@ -1,21 +1,35 @@
 <form>
   <search id="internal_cacheman">
-    <query>index=_internal sourcetype=splunkd component=CacheManager action=upload status=succeeded | rex field=cache_id "\|(?&lt;cache_id_index&gt;[^~]+)" | fields *</query>
+    <query>index=_internal sourcetype=splunkd component=CacheManager action=upload status=succeeded $cluster$ | rex field=cache_id "\|(?&lt;cache_id_index&gt;[^~]+)" | fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
   <search id="audit_lb">
-    <query>index=_audit action=local_bucket_* kb&gt;0 info=completed | rex field=cache_id "\|(?&lt;cache_id_index&gt;[^~]+)"  | fields *</query>
+    <query>index=_audit action=local_bucket_* kb&gt;0 info=completed $cluster$ | rex field=cache_id "\|(?&lt;cache_id_index&gt;[^~]+)"  | fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
   <search id="evicted">
-    <query>index=_internal evicted NOT StreamedSearch component=CacheManager | rex field=cache_id "\|(?&lt;cache_id_index&gt;[^~]+)"  | fields *</query>
+    <query>index=_internal evicted NOT StreamedSearch component=CacheManager $cluster$ | rex field=cache_id "\|(?&lt;cache_id_index&gt;[^~]+)"  | fields *</query>
     <earliest>$time.earliest$</earliest>
     <latest>$time.latest$</latest>
   </search>
   <label>Uploads ⬆️</label>
   <fieldset submitButton="false">
+    <input type="dropdown" token="cluster" searchWhenChanged="true">
+      <label>Cluster</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <prefix>splunk_server_group=</prefix>
+      <initialValue>*</initialValue>
+      <fieldForLabel>cluster_label</fieldForLabel>
+      <fieldForValue>cluster_label_value</fieldForValue>
+      <search>
+        <query>| rest /services/cluster/config | stats values by cluster_label | fields cluster_label | eval cluster_label_value="dmc_indexerclustergroup_".cluster_label</query>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </search>
+    </input>
     <input type="time" token="time" searchWhenChanged="true">
       <label>Time Range</label>
       <default>
@@ -87,7 +101,7 @@
       <title>Bucket Uploads Pending/Queued by Indexer</title>
       <chart>
         <search>
-          <query>| rest /services/admin/cacheman/_metrics
+          <query>| rest /services/admin/cacheman/_metrics $cluster$
 | table splunk_server uploads.pending uploads.queued
 | rename uploads.pending as "Pending Uploads" uploads.queued as "Queued Uploads"</query>
           <earliest>$time.earliest$</earliest>

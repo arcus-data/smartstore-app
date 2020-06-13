@@ -1,10 +1,24 @@
 <form>
   <!--https://answers.splunk.com/answers/701684/smartstorecan-i-get-more-information-on-migrating.html#answer-701685-->
   <search id="rest_base">
-    <query>| rest /services/admin/cacheman/_metrics splunk_server=* | fields *</query>
+    <query>| rest /services/admin/cacheman/_metrics $cluster$ | fields *</query>
   </search>
   <label>Migration 📦</label>
   <fieldset submitButton="false">
+    <input type="dropdown" token="cluster" searchWhenChanged="true">
+      <label>Cluster</label>
+      <choice value="*">All</choice>
+      <default>*</default>
+      <prefix>splunk_server_group=</prefix>
+      <initialValue>*</initialValue>
+      <fieldForLabel>cluster_label</fieldForLabel>
+      <fieldForValue>cluster_label_value</fieldForValue>
+      <search>
+        <query>| rest /services/cluster/config | stats values by cluster_label | fields cluster_label | eval cluster_label_value="dmc_indexerclustergroup_".cluster_label</query>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </search>
+    </input>
     <input type="time" token="time" searchWhenChanged="true">
       <label>Time Range</label>
       <default>
@@ -20,6 +34,7 @@
         <search base="rest_base">
           <query>| rename migration.total_jobs AS migration_jobs_total,migration.current_job AS migration_jobs_complete
 | eval migration_jobs_remaining=migration_jobs_total-migration_jobs_complete
+| fillnull value=0 migration_jobs_remaining
 | stats sum(migration_jobs_remaining)</query>
         </search>
         <option name="drilldown">none</option>
@@ -61,7 +76,7 @@
       <title>Bucket Migrations Initiated</title>
       <chart>
         <search>
-          <query>index=_internal source="*splunkd.log" DatabaseDirectoryManager "Remote storage migration" | timechart sum(count) by idx | rename VALUE_* as *</query>
+          <query>index=_internal source="*splunkd.log" DatabaseDirectoryManager "Remote storage migration" $cluster$ | timechart sum(count) by idx | rename VALUE_* as *</query>
           <earliest>$time.earliest$</earliest>
           <latest>$time.latest$</latest>
         </search>
@@ -75,7 +90,7 @@
       <title>Completed Migrations</title>
       <table>
         <search>
-          <query>index=_internal source="*splunkd.log" component=CacheManager "Remote storage migration" completed | table _time, splunk_server, upload_jobs, duration_sec | rename splunk_server as Indexer, upload_jobs as "Buckets Uploaded", duration_sec as "Duration in Seconds"</query>
+          <query>index=_internal source="*splunkd.log" component=CacheManager "Remote storage migration" completed $cluster$ | table _time, splunk_server, upload_jobs, duration_sec | rename splunk_server as Indexer, upload_jobs as "Buckets Uploaded", duration_sec as "Duration in Seconds"</query>
           <earliest>$time.earliest$</earliest>
           <latest>$time.latest$</latest>
         </search>
